@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Liste des Documents</title>
+  <title>Gestion des Documents</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -98,8 +98,15 @@
     <button id="btn-enseignant" onclick="showDocuments('enseignant')">Espace Enseignant</button>
   </div>
   <div id="documents-container"></div>
+
   <script>
     const apiUrl = 'https://backend-documents-api-d9ehb3dfdzg4grey.francecentral-01.azurewebsites.net';
+
+    let files = {
+      "etudiant": [],
+      "enseignant": []
+    };
+
     async function uploadFile() {
       const fileInput = document.getElementById('fileInput');
       if (!fileInput.files.length) {
@@ -114,14 +121,14 @@
           body: formData,
         });
         const result = await response.json();
-        alert(result.message);
+        alert(result.message || 'Upload réussi');
         fileInput.value = '';
         await fetchFiles();
       } catch (error) {
-        console.error('Erreur lors de l\'upload:', error);
         alert('Erreur lors de l\'upload');
       }
     }
+
     async function deleteFile(filename) {
       if (!confirm(`Êtes-vous sûr(e) de vouloir supprimer le fichier : ${filename} ?`)) return;
       try {
@@ -129,28 +136,25 @@
           method: 'DELETE',
         });
         const result = await response.json();
-        alert(result.message);
+        alert(result.message || 'Fichier supprimé avec succès');
         await fetchFiles();
       } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
         alert('Erreur lors de la suppression');
       }
     }
-    let files = {
-      "etudiant": [],
-      "enseignant": []
-    };
+
     async function fetchFiles() {
       try {
         const response = await fetch(`${apiUrl}/search`);
         const data = await response.json();
-        files.etudiant = data.filter(file => file.includes('etudiant'));
-        files.enseignant = data.filter(file => file.includes('enseignant'));
+        files.etudiant = data.filter(file => file.name.includes('etudiant'));
+        files.enseignant = data.filter(file => file.name.includes('enseignant'));
         showDocuments('etudiant');
       } catch (error) {
-        console.error('Erreur lors de la récupération des fichiers:', error);
+        alert('Erreur lors de la récupération des fichiers');
       }
     }
+
     function renderDocuments(category) {
       const container = document.getElementById('documents-container');
       container.innerHTML = '';
@@ -159,35 +163,37 @@
         container.innerHTML = '<p>Aucun fichier disponible.</p>';
         return;
       }
+      const categoryDiv = document.createElement('div');
+      categoryDiv.classList.add('document-category');
+      const categoryTitle = document.createElement('h2');
+      categoryTitle.textContent = category === 'etudiant' ? 'Documents Étudiant' : 'Documents Enseignant';
+      categoryDiv.appendChild(categoryTitle);
+      const ul = document.createElement('ul');
       categoryFiles.forEach((file) => {
-        const categoryDiv = document.createElement('div');
-        categoryDiv.classList.add('document-category');
-        const categoryTitle = document.createElement('h2');
-        categoryTitle.textContent = category === 'etudiant' ? 'Documents Étudiant' : 'Documents Enseignant';
-        categoryDiv.appendChild(categoryTitle);
-        const ul = document.createElement('ul');
         const li = document.createElement('li');
         const link = document.createElement('a');
-        link.href = `${apiUrl}/download/${file}`;
+        link.href = `${apiUrl}/download/${file.name}`;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
-        link.textContent = file;
+        link.textContent = file.name;
         const deleteButton = document.createElement('button');
         deleteButton.classList.add('delete-button');
         deleteButton.textContent = 'Supprimer';
-        deleteButton.onclick = () => deleteFile(file);
+        deleteButton.onclick = () => deleteFile(file.name);
         li.appendChild(link);
         li.appendChild(deleteButton);
         ul.appendChild(li);
-        categoryDiv.appendChild(ul);
-        container.appendChild(categoryDiv);
       });
+      categoryDiv.appendChild(ul);
+      container.appendChild(categoryDiv);
     }
+
     function showDocuments(space) {
       document.getElementById('btn-etudiant').disabled = (space === 'etudiant');
       document.getElementById('btn-enseignant').disabled = (space === 'enseignant');
       renderDocuments(space);
     }
+
     window.onload = async () => {
       await fetchFiles();
     };
